@@ -3,7 +3,6 @@ from pyrogram import filters
 from pyrogram.types import Message
 from pyrogram.raw.base.input_peer import InputPeer
 from pytgcalls import PyTgCalls, filters as calls_filters, idle
-# from pytgcalls.types import UpdatedGroupCallParticipant
 from pytgcalls.types import StreamEnded
 from enum import Enum
 
@@ -304,11 +303,6 @@ async def stop_handler(_, message: Message):
 @call_py.on_update(calls_filters.stream_end())
 async def stream_end_handler(_, update: StreamEnded):
     await player_py.process_stream_end()
-
-
-# @call_py.on_update(calls_filters.call_participant())
-# async def joined_handler(_, update: UpdatedGroupCallParticipant):
-#     await recorder_py.process_participant_update(update)
 
 
 call_py.start()  # type: ignore

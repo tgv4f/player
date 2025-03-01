@@ -6,17 +6,12 @@ from pytgcalls import exceptions as calls_exceptions
 from ntgcalls import StreamMode, ConnectionNotFound  # pyright: ignore [reportUnknownVariableType]
 from enum import Enum
 from pathlib import Path
-# from functools import wraps
 
 import asyncio
 import typing
 
 from src import utils
 from .player import PlayerPy
-
-
-# T = typing.TypeVar("T")
-# P = typing.ParamSpec("P")
 
 
 class StateEnum(Enum):

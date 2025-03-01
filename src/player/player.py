@@ -1,7 +1,6 @@
 from pyrogram.client import Client
 from pyrogram.raw.base.input_peer import InputPeer
 from pytgcalls import PyTgCalls
-# from pytgcalls.types import GroupCallParticipant, UpdatedGroupCallParticipant
 from pytgcalls.types import AudioQuality
 from pathlib import Path
 
