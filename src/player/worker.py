@@ -220,6 +220,9 @@ class PlayerWorker:
 
         await self._call_py_binding.stop(self.join_chat_id)
 
+        if self._last_played_song_file_path:
+            self._last_played_song_file_path.unlink()
+
         if self._current_state != StateEnum.PLAYING_SONG:
             self._log_info("No song to skip")
 

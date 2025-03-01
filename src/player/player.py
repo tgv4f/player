@@ -139,7 +139,6 @@ class PlayerPy:
     async def skip_song(self) -> None:
         await self.worker.skip_song()  # type: ignore
 
-    # worker._songs_repeat_enabled
     @property
     @_verify_running_sync_wrapper
     def songs_repeat_enabled(self) -> None:
