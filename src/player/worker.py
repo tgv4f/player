@@ -1,8 +1,7 @@
-# from pytgcalls.types import GroupCallParticipant
 from pyrogram.raw.base.input_peer import InputPeer
 from pytgcalls.methods.utilities.stream_params import StreamParams
 from pytgcalls.types.stream.media_stream import MediaStream
-from pytgcalls.types import GroupCallConfig
+from pytgcalls.types import GroupCallConfig, GroupCallParticipant
 from pytgcalls import exceptions as calls_exceptions
 from ntgcalls import StreamMode, ConnectionNotFound  # pyright: ignore [reportUnknownVariableType]
 from enum import Enum
@@ -12,6 +11,7 @@ from pathlib import Path
 import asyncio
 import typing
 
+from src import utils
 from .player import PlayerPy
 
 
@@ -31,10 +31,14 @@ class PlayerWorker:
         self,
         parent: PlayerPy,
         join_chat_id: int,
-        join_as_peer: InputPeer | None = None
+        join_as_peer: InputPeer | None = None,
+        participants_monitor_interval: float = 3.,
+        none_participants_timeout: float = 60.
     ):
         self.join_chat_id = join_chat_id
         self._join_as_peer = join_as_peer
+        self._participants_monitor_interval = participants_monitor_interval
+        self._none_participants_timeout = none_participants_timeout
 
         self._logger = parent._logger
         self._app = parent._app
@@ -45,10 +49,11 @@ class PlayerWorker:
 
         self._is_running = False
         self._current_state = StateEnum.WAITING
-        # self._participants_monitor_task: asyncio.Task[None] | None = None
+        self._participants_monitor_task: asyncio.Task[None] | None = None
         self._songs_queue: asyncio.Queue[Path] = asyncio.Queue()
         self._songs_repeat_enabled = False
         self._last_played_song_file_path: Path | None = None
+        self._none_participants_first_time = 0
 
     @property
     def is_running(self) -> bool:
@@ -77,25 +82,6 @@ class PlayerWorker:
 
     def _log_exception(self, msg: typing.Any, ex: Exception, **kwargs: typing.Any) -> None:
         self._logger.exception(f"{self._get_log_pre_str()} {msg}", exc_info=ex, **kwargs)
-
-    # async def _wrapper_logger(self, coro: typing.Awaitable[T]) -> T | None:
-    #     try:
-    #         return await coro
-    #     except Exception as ex:
-    #         self._log_exception("Error in coroutine", ex)
-
-    # @staticmethod
-    # def _if_running_wrapper(
-    #     func: typing.Callable[typing.Concatenate["PlayerWorker", P], typing.Awaitable[T]]
-    # ) -> typing.Callable[typing.Concatenate["PlayerWorker", P], typing.Awaitable[T | None]]:
-    #     @wraps(func)
-    #     async def wrapper(self: "PlayerWorker", *args: P.args, **kwargs: P.kwargs) -> T | None:
-    #         if self._is_running:
-    #             return await func(self, *args, **kwargs)
-
-    #         return None
-
-    #     return wrapper
 
     async def process_stream_end(self) -> None:
         self._log_info("Stream ended")
@@ -165,6 +151,43 @@ class PlayerWorker:
 
         await self._play_song(song_file_path)
 
+    async def _participants_monitor(self) -> None:
+        while self._is_running:
+            await asyncio.sleep(self._participants_monitor_interval)
+
+            try:
+                participants = typing.cast(
+                    list[GroupCallParticipant],
+                    await self._call_py.get_participants(self.join_chat_id)
+                )
+
+            except Exception as ex:
+                self._log_exception("Error while getting participants", ex)
+
+                continue
+
+            participants_count = len(participants)
+
+            for participant in participants:
+                user_id = participant.user_id
+
+                if user_id == self._app_user_id:
+                    participants_count -= 1
+
+                    continue
+
+            self._log_debug(f"Participants in chat: {len(participants)}")
+
+            if participants_count != 0:
+                self._none_participants_first_time = utils.get_timestamp_int()
+
+            elif self._none_participants_first_time - utils.get_timestamp_int() > self._none_participants_timeout:
+                self._log_debug(f"No participants in chat for a long time ({self._none_participants_timeout} seconds) - stopping worker")
+
+                await self.stop()
+
+                return
+
     async def start(self) -> None:
         """
         Start the worker session to record voice chat.
@@ -181,6 +204,8 @@ class PlayerWorker:
                 join_as = self._join_as_peer
             )
         )
+
+        self._participants_monitor_task = asyncio.create_task(utils.async_wrapper_logger(self._logger, self._participants_monitor()))
 
         self._log_info("Worker session started")
 
@@ -248,8 +273,8 @@ class PlayerWorker:
 
         self._is_running = False
 
-        # if self._participants_monitor_task:
-        #     await self._participants_monitor_task
+        if self._participants_monitor_task:
+            await self._participants_monitor_task
 
         try:
             await self._call_py.leave_call(self.join_chat_id)
