@@ -3,6 +3,7 @@ from pyrogram.raw.base.input_peer import InputPeer
 from pytgcalls.methods.utilities.stream_params import StreamParams
 from pytgcalls.types.stream.media_stream import MediaStream
 from pytgcalls.types import GroupCallConfig
+from pytgcalls import exceptions as calls_exceptions
 from ntgcalls import StreamMode, ConnectionNotFound  # pyright: ignore [reportUnknownVariableType]
 from enum import Enum
 from pathlib import Path
@@ -250,4 +251,7 @@ class PlayerWorker:
         # if self._participants_monitor_task:
         #     await self._participants_monitor_task
 
-        await self._call_py.leave_call(self.join_chat_id)
+        try:
+            await self._call_py.leave_call(self.join_chat_id)
+        except calls_exceptions.NotInCallError:
+            pass

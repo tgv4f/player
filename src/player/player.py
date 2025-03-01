@@ -1,6 +1,6 @@
 from pyrogram.client import Client
 from pyrogram.raw.base.input_peer import InputPeer
-from pytgcalls import PyTgCalls, exceptions as calls_exceptions
+from pytgcalls import PyTgCalls
 # from pytgcalls.types import GroupCallParticipant, UpdatedGroupCallParticipant
 from pytgcalls.types import AudioQuality
 from pathlib import Path
@@ -141,7 +141,7 @@ class PlayerPy:
 
     @property
     @_verify_running_sync_wrapper
-    def songs_repeat_enabled(self) -> None:
+    def songs_repeat_enabled(self) -> bool:
         return self.worker.songs_repeat_enabled  # type: ignore
 
     @songs_repeat_enabled.setter
@@ -158,11 +158,6 @@ class PlayerPy:
         self._is_running = False
 
         if self.worker:
-            try:
-                await self._call_py.leave_call(self.worker.join_chat_id)
-            except calls_exceptions.NoActiveGroupCall:
-                pass
-
             if self.worker.is_running:
                 await self.worker.stop()
 
