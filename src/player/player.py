@@ -39,8 +39,7 @@ class PlayerPy:
 
     @property
     def is_running(self) -> bool:
-        return self._is_running
-        # return self._is_running and bool(self.worker) and self.worker.is_running
+        return self._is_running and bool(self.worker) and self.worker.is_running
 
     @property
     def join_chat_id(self) -> int | None:
