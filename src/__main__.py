@@ -222,6 +222,18 @@ async def add_handler(_, message: Message):
     await reply_to_message.reply_text("Song added to queue")
 
 
+@app.on_message(chat_id_filter & filters.command(["repeat"], COMMANDS_PREFIXES))
+async def repeat_handler(_, message: Message):
+    if not player_py.is_running:
+        await message.reply_text("Player is not running")
+
+        return
+
+    player_py.songs_repeat_enabled = not player_py.songs_repeat_enabled
+
+    await message.reply_text(f"Song repeated = {player_py.songs_repeat_enabled}")
+
+
 @app.on_message(chat_id_filter & filters.command(["pause"], COMMANDS_PREFIXES))
 async def pause_handler(_, message: Message):
     if not player_py.is_running:

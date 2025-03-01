@@ -46,6 +46,7 @@ class PlayerWorker:
         self._current_state = StateEnum.WAITING
         # self._participants_monitor_task: asyncio.Task[None] | None = None
         self._songs_queue: asyncio.Queue[Path] = asyncio.Queue()
+        self._songs_repeat_enabled = False
         self._last_played_song_file_path: Path | None = None
 
     @property
@@ -55,6 +56,14 @@ class PlayerWorker:
     @property
     def current_state(self) -> StateEnum:
         return self._current_state
+
+    @property
+    def songs_repeat_enabled(self) -> bool:
+        return self._songs_repeat_enabled
+
+    @songs_repeat_enabled.setter
+    def songs_repeat_enabled(self, value: bool) -> None:
+        self._songs_repeat_enabled = value
 
     def _get_log_pre_str(self) -> str:
         return f"[{self.join_chat_id}]"
@@ -90,7 +99,12 @@ class PlayerWorker:
     async def process_stream_end(self) -> None:
         self._log_info("Stream ended")
 
-        # TODO: play next song
+        if self._songs_repeat_enabled and self._last_played_song_file_path:
+            self._log_info(f"Replaying song: {self._last_played_song_file_path.resolve().as_posix()}")
+
+            await self._play_song(self._last_played_song_file_path)
+
+            return
 
         if self._last_played_song_file_path:
             self._log_info(f"Removing song file: {self._last_played_song_file_path.resolve().as_posix()}")
@@ -99,20 +113,7 @@ class PlayerWorker:
 
         await self._play_next_song()
 
-    async def _play_next_song(self) -> None:
-        self._log_info("... Playing next song...")
-
-        if self._songs_queue.empty():
-            self._log_info("No songs in queue")
-
-            self._current_state = StateEnum.WAITING
-
-            return
-
-        song_file_path = await self._songs_queue.get()
-
-        self._log_debug(f"Got song from queue: {song_file_path.resolve().as_posix()}")
-
+    async def _play_song(self, song_file_path: Path) -> None:
         self._last_played_song_file_path = song_file_path
 
         stream_params = await StreamParams.get_stream_params(  # type: ignore
@@ -146,6 +147,22 @@ class PlayerWorker:
             )
 
         self._current_state = StateEnum.PLAYING_SONG
+
+    async def _play_next_song(self) -> None:
+        self._log_info("... Playing next song...")
+
+        if self._songs_queue.empty():
+            self._log_info("No songs in queue")
+
+            self._current_state = StateEnum.WAITING
+
+            return
+
+        song_file_path = await self._songs_queue.get()
+
+        self._log_debug(f"Got song from queue: {song_file_path.resolve().as_posix()}")
+
+        await self._play_song(song_file_path)
 
     async def start(self) -> None:
         """

@@ -62,6 +62,19 @@ class PlayerPy:
 
         return wrapper
 
+    @staticmethod
+    def _verify_running_sync_wrapper(
+        func: typing.Callable[typing.Concatenate["PlayerPy", P], T]
+    ) -> typing.Callable[typing.Concatenate["PlayerPy", P], T]:
+        @wraps(func)
+        def wrapper(self: "PlayerPy", *args: P.args, **kwargs: P.kwargs) -> T:
+            if not self._is_running or not self.worker or not self.worker.is_running:
+                raise ValueError("Player is not running")
+
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
     async def process_stream_end(self) -> None:
         if not self._is_running or not self.worker:
             return
@@ -125,6 +138,17 @@ class PlayerPy:
     @_verify_running_wrapper
     async def skip_song(self) -> None:
         await self.worker.skip_song()  # type: ignore
+
+    # worker._songs_repeat_enabled
+    @property
+    @_verify_running_sync_wrapper
+    def songs_repeat_enabled(self) -> None:
+        return self.worker.songs_repeat_enabled  # type: ignore
+
+    @songs_repeat_enabled.setter
+    @_verify_running_sync_wrapper
+    def songs_repeat_enabled(self, value: bool) -> None:
+        self.worker.songs_repeat_enabled = value  # type: ignore
 
     async def stop(self) -> None:
         if not self._is_running:
