@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, field_validator
+from pytgcalls.types import AudioQuality
 
 import re
 import sys
@@ -31,6 +32,7 @@ class Config(BaseModel):
     session: SessionConfig
     control_chat_id: int | str
     default_join_chat_id: int | str | None = Field(default=None)
+    audio_quality: AudioQuality = Field(default=AudioQuality.HIGH)
     console_log_level: int = Field(default=logging.INFO)
     file_log_level: int = Field(default=logging.DEBUG)
 

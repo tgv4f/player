@@ -4,7 +4,7 @@ from pyrogram.types import Message
 from pyrogram.raw.base.input_peer import InputPeer
 from pytgcalls import PyTgCalls, filters as calls_filters, idle
 # from pytgcalls.types import UpdatedGroupCallParticipant
-from pytgcalls.types import AudioQuality, StreamEnded
+from pytgcalls.types import StreamEnded
 from enum import Enum
 
 import re
@@ -43,7 +43,7 @@ player_py = PlayerPy(
     logger = logger,
     app = app,
     call_py = call_py,
-    quality = AudioQuality.HIGH
+    quality = config.audio_quality
 )
 
 
