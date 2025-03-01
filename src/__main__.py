@@ -8,6 +8,7 @@ from pytgcalls.types import AudioQuality, StreamEnded
 # from pytgcalls.types import MediaStream
 
 import re
+import asyncio
 import typing
 
 from src import constants, utils
@@ -44,6 +45,9 @@ player_py = PlayerPy(
     call_py = call_py,
     quality = AudioQuality.HIGH
 )
+
+
+add_to_queue_lock = asyncio.Lock()
 
 
 async def _chat_id_filter(_: typing.Any, __: typing.Any, message: Message) -> bool:
@@ -114,71 +118,72 @@ async def join_handler(_, message: Message):
 
         return
 
-    command_match_data: dict[str, str] = command_match.groupdict()
+    async with add_to_queue_lock:
+        command_match_data: dict[str, str] = command_match.groupdict()
 
-    join_chat_id_str = command_match_data.get("join_chat_id")
-    join_as_id_str = command_match_data.get("join_as_id")
+        join_chat_id_str = command_match_data.get("join_chat_id")
+        join_as_id_str = command_match_data.get("join_as_id")
 
-    processing_message = await message.reply_text("Processing...")
+        processing_message = await message.reply_text("Processing...")
 
-    if not join_chat_id_str or join_chat_id_str == "-":
-        join_chat_id = config.default_join_chat_id or message.chat.id
+        if not join_chat_id_str or join_chat_id_str == "-":
+            join_chat_id = config.default_join_chat_id or message.chat.id
 
-        if isinstance(join_chat_id, int):
-            join_chat_id = _fix_chat_id(join_chat_id)
+            if isinstance(join_chat_id, int):
+                join_chat_id = _fix_chat_id(join_chat_id)
+
+            else:
+                try:
+                    join_chat_id = _fix_chat_id(await _resolve_chat_id(join_chat_id))
+
+                except ValueError as ex:
+                    await processing_message.delete()
+                    await message.reply_text(f"Listen chat ID (config) = {join_chat_id!r}" + "\n" + ex.args[0])
+
+            join_chat_id = typing.cast(int, join_chat_id)
 
         else:
             try:
-                join_chat_id = _fix_chat_id(await _resolve_chat_id(join_chat_id))
+                join_chat_id = _fix_chat_id(await _resolve_chat_id(join_chat_id_str))
 
             except ValueError as ex:
                 await processing_message.delete()
-                await message.reply_text(f"Listen chat ID (config) = {join_chat_id!r}" + "\n" + ex.args[0])
+                await message.reply_text(f"Chat ID = {join_chat_id_str!r}" + "\n" + ex.args[0])
 
-        join_chat_id = typing.cast(int, join_chat_id)
+                return
 
-    else:
-        try:
-            join_chat_id = _fix_chat_id(await _resolve_chat_id(join_chat_id_str))
+        if player_py.is_running:
+            if player_py.join_chat_id != join_chat_id:
+                await processing_message.delete()
+                await message.reply_text(f"Already joined to chat {join_chat_id}")
 
-        except ValueError as ex:
-            await processing_message.delete()
-            await message.reply_text(f"Chat ID = {join_chat_id_str!r}" + "\n" + ex.args[0])
+                return
 
-            return
+            await player_py.stop()
 
-    if player_py.is_running:
-        if player_py.join_chat_id != join_chat_id:
-            await processing_message.delete()
-            await message.reply_text(f"Already joined to chat {join_chat_id}")
+        join_as_peer: InputPeer | None = None
 
-            return
+        if join_as_id_str:
+            try:
+                join_as_peer = await _resolve_chat_id(join_as_id_str, as_peer=True)
 
-        await player_py.stop()
+            except ValueError as ex:
+                await processing_message.delete()
+                await message.reply_text(f"Join as ID = {join_as_id_str!r}" + "\n" + ex.args[0])
 
-    join_as_peer: InputPeer | None = None
+                return
 
-    if join_as_id_str:
-        try:
-            join_as_peer = await _resolve_chat_id(join_as_id_str, as_peer=True)
+        await player_py.join(
+            join_chat_id = join_chat_id,
+            join_as_peer = join_as_peer
+        )
 
-        except ValueError as ex:
-            await processing_message.delete()
-            await message.reply_text(f"Join as ID = {join_as_id_str!r}" + "\n" + ex.args[0])
+        await processing_message.delete()
 
-            return
-
-    await player_py.join(
-        join_chat_id = join_chat_id,
-        join_as_peer = join_as_peer
-    )
-
-    await processing_message.delete()
-
-    await message.reply_text((
-        f"Joined to voice chat of <code>{join_chat_id}</code>\n"
-        f"""Joined as: {f"<code>{_fix_chat_id(typing.cast(int, _extract_id_from_peer(join_as_peer)))}</code>" if join_as_peer else "<b>self</b>"}"""
-    ))
+        await message.reply_text((
+            f"Joined to voice chat of <code>{join_chat_id}</code>\n"
+            f"""Joined as: {f"<code>{_fix_chat_id(typing.cast(int, _extract_id_from_peer(join_as_peer)))}</code>" if join_as_peer else "<b>self</b>"}"""
+        ))
 
 
 @app.on_message(chat_id_filter & filters.command(["add"], COMMANDS_PREFIXES) & filters.reply)  # add to queue
