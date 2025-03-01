@@ -161,6 +161,7 @@ async def join_handler(_, message: Message):
         await player_py.stop()
 
     join_as_peer: InputPeer | None = None
+    join_as_id: int | None = None
 
     if join_as_id_str:
         try:
@@ -172,9 +173,12 @@ async def join_handler(_, message: Message):
 
             return
 
+        join_as_id = utils.fix_chat_id(typing.cast(int, utils.extract_id_from_peer(join_as_peer)))
+
     await player_py.join(
         join_chat_id = join_chat_id,
-        join_as_peer = join_as_peer
+        join_as_peer = join_as_peer,
+        join_as_id = join_as_id
     )
 
     await processing_message.delete()

@@ -82,7 +82,8 @@ class PlayerPy:
     async def join(
         self,
         join_chat_id: int,
-        join_as_peer: InputPeer | None = None
+        join_as_peer: InputPeer | None = None,
+        join_as_id: int | None = None
     ) -> None:
         self._logger.info("Starting (join) player...")
 
@@ -105,7 +106,8 @@ class PlayerPy:
         self.worker = PlayerWorker(
             parent = self,
             join_chat_id = join_chat_id,
-            join_as_peer = join_as_peer
+            join_as_peer = join_as_peer,
+            join_as_id = join_as_id or self._app_user_id
         )
 
         for chat_id in (await self._call_py_binding.calls()).keys():  # type: ignore

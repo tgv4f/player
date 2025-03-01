@@ -26,11 +26,13 @@ class PlayerWorker:
         self,
         parent: PlayerPy,
         join_chat_id: int,
+        join_as_id: int,
         join_as_peer: InputPeer | None = None,
         participants_monitor_interval: float = 3.,
-        none_participants_timeout: float = 60.
+        none_participants_timeout: float = 30.
     ):
         self.join_chat_id = join_chat_id
+        self._join_as_id = join_as_id
         self._join_as_peer = join_as_peer
         self._participants_monitor_interval = participants_monitor_interval
         self._none_participants_timeout = none_participants_timeout
@@ -39,7 +41,6 @@ class PlayerWorker:
         self._app = parent._app
         self._call_py = parent._call_py
         self._call_py_binding = parent._call_py_binding
-        self._app_user_id = parent._app_user_id
         self._quality = parent._quality
 
         self._is_running = False
@@ -166,18 +167,20 @@ class PlayerWorker:
             for participant in participants:
                 user_id = participant.user_id
 
-                if user_id == self._app_user_id:
+                if user_id == self._join_as_id:
                     participants_count -= 1
 
                     continue
 
-            self._log_debug(f"Participants in chat: {len(participants)}")
+            self._log_debug(f"Participants in chat: {participants_count} (until shutdown: {(self._none_participants_first_time - utils.get_timestamp_int()) * -1} seconds)")
 
-            if participants_count != 0:
+            if participants_count != 0 or self._none_participants_first_time == 0:
                 self._none_participants_first_time = utils.get_timestamp_int()
 
-            elif self._none_participants_first_time - utils.get_timestamp_int() > self._none_participants_timeout:
+            elif utils.get_timestamp_int() - self._none_participants_first_time > self._none_participants_timeout:
                 self._log_debug(f"No participants in chat for a long time ({self._none_participants_timeout} seconds) - stopping worker")
+
+                self._participants_monitor_task = None
 
                 await self.stop()
 
@@ -275,3 +278,5 @@ class PlayerWorker:
             await self._call_py.leave_call(self.join_chat_id)
         except calls_exceptions.NotInCallError:
             pass
+
+        self._log_info("Worker session stopped")
