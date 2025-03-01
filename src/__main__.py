@@ -17,7 +17,6 @@ from src.config import config
 
 
 COMMANDS_PREFIXES = "!"
-JOIN_COMAMND = "join"
 JOIN_COMMAND_PATTERN = re.compile(r"^(?:\s+(?P<join_chat_id>-|@?[a-zA-Z0-9_]{4,})(?:\s+(?P<join_as_id>@?[a-zA-Z0-9_]{4,}))?)?$")
 
 
@@ -113,7 +112,7 @@ async def join_handler(_, message: Message):
 
     `!join`
     """
-    command_match = JOIN_COMMAND_PATTERN.match(typing.cast(str, message.text)[1 + len(JOIN_COMAMND):])
+    command_match = JOIN_COMMAND_PATTERN.match(typing.cast(str, message.text)[1 + len(CommandsEnum.JOIN.value):])
 
     if not command_match:
         await message.reply_text("Invalid command format")
