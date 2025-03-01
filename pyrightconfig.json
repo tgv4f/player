@@ -1,0 +1,7 @@
+{
+    "typeCheckingMode": "strict",
+    "reportMissingTypeStubs": false,
+    "reportUnknownMemberType": false,
+    "reportUntypedFunctionDecorator": false,
+    "reportPrivateUsage": false
+}
