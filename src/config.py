@@ -31,6 +31,8 @@ class SessionConfig(BaseModel):
 class Config(BaseModel):
     session: SessionConfig
     control_chat_id: int | str
+    control_user_ids: list[int] | None = Field(default=None)
+    send_messages_as_chat_id: int | str | None = Field(default=None)
     default_join_chat_id: int | str | None = Field(default=None)
     audio_quality: AudioQuality = Field(default=AudioQuality.HIGH)
     console_log_level: int = Field(default=logging.INFO)

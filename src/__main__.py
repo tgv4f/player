@@ -2,6 +2,7 @@ from pyrogram.client import Client
 from pyrogram import filters
 from pyrogram.types import Message
 from pyrogram.raw.base.input_peer import InputPeer
+from pyrogram.sync import async_to_sync  # type: ignore
 from pytgcalls import PyTgCalls, filters as calls_filters, idle
 from pytgcalls.types import StreamEnded
 from enum import Enum
@@ -12,6 +13,7 @@ import typing
 
 from src import constants, utils
 from src.player import PlayerPy
+from src.setup_client import setup_client
 from src.config import config
 
 
@@ -45,13 +47,32 @@ player_py = PlayerPy(
 )
 
 
-async def _chat_id_filter(_: typing.Any, __: typing.Any, message: Message) -> bool:
-    if isinstance(config.control_chat_id, int):
-        return message.chat.id == config.control_chat_id
+async def _control_filter(_: typing.Any, __: typing.Any, message: Message) -> bool:
+    return (
+        (
+            message.chat.id == config.control_chat_id
+            if isinstance(config.control_chat_id, int)
+            else
+            (
+                message.chat.username.lower() == config.control_chat_id
+                if message.chat.username
+                else
+                False
+            )
+        ) and (
+            True
+            if config.control_user_ids is None
+            else
+            (
+                message.from_user.id in config.control_user_ids
+                if message.from_user
+                else
+                False
+            )
+        )
+    )
 
-    return message.chat.username.lower() == config.control_chat_id
-
-chat_id_filter = filters.create(_chat_id_filter)
+control_filter = filters.create(_control_filter)
 
 
 class CommandsEnum(Enum):
@@ -75,7 +96,6 @@ def _get_command_filter(command: CommandsEnum) -> filters.Filter:
     return filters.command(command.value, COMMANDS_PREFIXES)
 
 
-# wrapper with lock
 def _lockable_command_wrapper(command: CommandsEnum) -> typing.Callable[
     [typing.Callable[[typing.Any, Message], typing.Awaitable[typing.Any]]], 
     typing.Callable[[typing.Any, Message], typing.Awaitable[typing.Any]]
@@ -94,7 +114,7 @@ def _lockable_command_wrapper(command: CommandsEnum) -> typing.Callable[
     return decorator
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.JOIN))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.JOIN))
 @_lockable_command_wrapper(CommandsEnum.JOIN)
 async def join_handler(_, message: Message):
     """
@@ -189,7 +209,7 @@ async def join_handler(_, message: Message):
     ))
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.ADD))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.ADD))
 @_lockable_command_wrapper(CommandsEnum.ADD)
 async def add_handler(_, message: Message):
     """
@@ -226,7 +246,7 @@ async def add_handler(_, message: Message):
 
     processing_message = await reply_to_message.reply_text("Processing...")
 
-    file_path = constants.DOWNLOADS_DIRPATH.joinpath(f"{utils.get_timestamp_int()}.{file_ext}").as_posix()
+    file_path = constants.DOWNLOADS_DIRPATH.joinpath(f"{utils.get_timestamp_int()}-{utils.get_uuid()}.{file_ext}").as_posix()
 
     await app.download_media(
         message = playable_media.file_id,
@@ -240,7 +260,7 @@ async def add_handler(_, message: Message):
     await reply_to_message.reply_text("Song added to queue")
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.REPEAT))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.REPEAT))
 @_lockable_command_wrapper(CommandsEnum.REPEAT)
 async def repeat_handler(_, message: Message):
     if not player_py.is_running:
@@ -253,7 +273,7 @@ async def repeat_handler(_, message: Message):
     await message.reply_text(f"Song repeated = {player_py.songs_repeat_enabled}")
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.PAUSE))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.PAUSE))
 @_lockable_command_wrapper(CommandsEnum.PAUSE)
 async def pause_handler(_, message: Message):
     if not player_py.is_running:
@@ -266,7 +286,7 @@ async def pause_handler(_, message: Message):
     await message.reply_text("Song paused")
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.RESUME))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.RESUME))
 @_lockable_command_wrapper(CommandsEnum.RESUME)
 async def resume_handler(_, message: Message):
     if not player_py.is_running:
@@ -279,7 +299,7 @@ async def resume_handler(_, message: Message):
     await message.reply_text("Song resumed")
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.SKIP))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.SKIP))
 @_lockable_command_wrapper(CommandsEnum.SKIP)
 async def skip_handler(_, message: Message):
     if not player_py.is_running:
@@ -292,7 +312,7 @@ async def skip_handler(_, message: Message):
     await message.reply_text("Song skipped")
 
 
-@app.on_message(chat_id_filter & _get_command_filter(CommandsEnum.STOP))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.STOP))
 @_lockable_command_wrapper(CommandsEnum.STOP)
 async def stop_handler(_, message: Message):
     stopping_message = await message.reply_text("Stopping recording...")
@@ -309,5 +329,30 @@ async def stream_end_handler(_, update: StreamEnded):
     await player_py.process_stream_end()
 
 
-call_py.start()  # type: ignore
-idle()
+def on_startup() -> None:
+    async_to_sync(utils, "resolve_chat_id")
+
+    setup_client(
+        client = app,
+        send_as = (
+            getattr(utils, "resolve_chat_id")(app, config.send_messages_as_chat_id, as_peer=True)
+            if config.send_messages_as_chat_id is not None
+            else
+            None
+        )
+    )
+
+
+def main() -> None:
+    app.start()  # type: ignore
+    call_py.start()  # type: ignore
+
+    on_startup()
+
+    idle()
+
+    app.stop()  # type: ignore
+
+
+if __name__ == "__main__":
+    main()

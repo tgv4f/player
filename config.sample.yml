@@ -4,6 +4,10 @@ session:
   api_hash: "1234567890abcdef1234567890abcdef"
   phone_number: "+1234567890"
 control_chat_id: -100  # or "@username"
+control_user_ids:  # only IDs accepted
+  - 1234567890
+  - 1234567890
+send_messages_as_chat_id: null  # Optional; or "@username"
 default_join_chat_id: -100  # Optional; or "@username"
 send_to_chat_id: -100  # Optional; or "@username"
 console_log_level: DEBUG  # Optional; or DEBUG, WARNING, ERROR

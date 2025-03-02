@@ -79,6 +79,14 @@ class PlayerWorker:
     def _log_exception(self, msg: typing.Any, ex: Exception, **kwargs: typing.Any) -> None:
         self._logger.exception(f"{self._get_log_pre_str()} {msg}", exc_info=ex, **kwargs)
 
+    def _remove_last_played_song(self) -> None:
+        if self._last_played_song_file_path and self._last_played_song_file_path.exists():
+            self._log_info(f"Removing song file: {self._last_played_song_file_path.resolve().as_posix()}")
+
+            self._last_played_song_file_path.unlink()
+
+            self._last_played_song_file_path = None
+
     async def process_stream_end(self) -> None:
         self._log_info("Stream ended")
 
@@ -88,11 +96,6 @@ class PlayerWorker:
             await self._play_song(self._last_played_song_file_path)
 
             return
-
-        if self._last_played_song_file_path:
-            self._log_info(f"Removing song file: {self._last_played_song_file_path.resolve().as_posix()}")
-
-            self._last_played_song_file_path.unlink()
 
         await self._play_next_song()
 
@@ -134,6 +137,8 @@ class PlayerWorker:
     async def _play_next_song(self) -> None:
         self._log_info("... Playing next song...")
 
+        self._remove_last_played_song()
+
         if self._songs_queue.empty():
             self._log_info("No songs in queue")
 
@@ -165,14 +170,12 @@ class PlayerWorker:
             participants_count = len(participants)
 
             for participant in participants:
-                user_id = participant.user_id
-
-                if user_id == self._join_as_id:
+                if participant.user_id == self._join_as_id:
                     participants_count -= 1
 
-                    continue
+                    break
 
-            self._log_debug(f"Participants in chat: {participants_count} (until shutdown: {(self._none_participants_first_time - utils.get_timestamp_int()) * -1} seconds)")
+            self._log_debug(f"""Participants in chat: {participants_count} (until shutdown: {(self._none_participants_timeout - (utils.get_timestamp_int() - self._none_participants_first_time)) if self._none_participants_first_time else f">{self._none_participants_timeout}"} seconds)""")
 
             if participants_count != 0 or self._none_participants_first_time == 0:
                 self._none_participants_first_time = utils.get_timestamp_int()
@@ -184,7 +187,7 @@ class PlayerWorker:
 
                 await self.stop()
 
-                return
+                break
 
     async def start(self) -> None:
         """
@@ -244,8 +247,7 @@ class PlayerWorker:
 
         await self._call_py_binding.stop(self.join_chat_id)
 
-        if self._last_played_song_file_path:
-            self._last_played_song_file_path.unlink()
+        self._remove_last_played_song()
 
         if self._current_state != StateEnum.PLAYING_SONG:
             self._log_info("No song to skip")
@@ -278,5 +280,7 @@ class PlayerWorker:
             await self._call_py.leave_call(self.join_chat_id)
         except calls_exceptions.NotInCallError:
             pass
+
+        self._remove_last_played_song()
 
         self._log_info("Worker session stopped")

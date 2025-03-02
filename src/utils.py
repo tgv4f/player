@@ -3,6 +3,7 @@ from pyrogram.raw.base.input_peer import InputPeer
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from time import time
+from uuid import uuid4
 
 import logging
 import typing
@@ -57,6 +58,10 @@ def is_int(value: str) -> bool:
 
 def get_timestamp_int() -> int:
     return int(time())
+
+
+def get_uuid() -> str:
+    return str(uuid4())
 
 
 async def async_wrapper_logger(logger: logging.Logger, coro: typing.Awaitable[T]) -> T | None:
