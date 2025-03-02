@@ -79,6 +79,7 @@ class CommandsEnum(Enum):
     JOIN = "join"
     ADD = "add"
     REPEAT = "repeat"
+    REPLAY = "replay"  # = REPEAT
     PAUSE = "pause"
     RESUME = "resume"
     SKIP = "skip"
@@ -92,8 +93,11 @@ class CommandsEnum(Enum):
 lock = asyncio.Lock()
 
 
-def _get_command_filter(command: CommandsEnum) -> filters.Filter:
-    return filters.command(command.value, COMMANDS_PREFIXES)
+def _get_command_filter(*commands: CommandsEnum) -> filters.Filter:
+    return filters.command([
+        command.value
+        for command in commands
+    ], COMMANDS_PREFIXES)
 
 
 def _lockable_command_wrapper(command: CommandsEnum) -> typing.Callable[
@@ -260,7 +264,7 @@ async def add_handler(_, message: Message):
     await reply_to_message.reply_text("Song added to queue")
 
 
-@app.on_message(control_filter & _get_command_filter(CommandsEnum.REPEAT))
+@app.on_message(control_filter & _get_command_filter(CommandsEnum.REPEAT, CommandsEnum.REPLAY))
 @_lockable_command_wrapper(CommandsEnum.REPEAT)
 async def repeat_handler(_, message: Message):
     if not player_py.is_running:
