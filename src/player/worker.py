@@ -191,7 +191,7 @@ class PlayerWorker:
 
     async def start(self) -> None:
         """
-        Start the worker session to record voice chat.
+        Start the worker to play songs.
         """
 
         if self._is_running:

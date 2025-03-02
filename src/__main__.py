@@ -319,13 +319,13 @@ async def skip_handler(_, message: Message):
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.STOP))
 @_lockable_command_wrapper(CommandsEnum.STOP)
 async def stop_handler(_, message: Message):
-    stopping_message = await message.reply_text("Stopping recording...")
+    stopping_message = await message.reply_text("Stopping player...")
 
     await player_py.stop()
 
     await stopping_message.delete()
 
-    await message.reply_text("Recording stopped")
+    await message.reply_text("Player stopped")
 
 
 @call_py.on_update(calls_filters.stream_end())
