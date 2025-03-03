@@ -192,4 +192,4 @@ async def send_message(
 
 
 def setup_client(client: Client, send_as: raw.base.InputPeer | None=None) -> None:
-    client.send_message = partial(send_message, client, send_as=send_as)
+    client.send_message = partial(send_message, client, send_as=send_as or raw.types.InputPeerSelf())
