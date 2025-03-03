@@ -120,7 +120,7 @@ def _lockable_command_wrapper(command: CommandsEnum) -> typing.Callable[
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.JOIN))
 @_lockable_command_wrapper(CommandsEnum.JOIN)
-async def join_handler(_, message: Message):
+async def join_command_handler(_, message: Message) -> None:
     """
     Join a voice chat.
 
@@ -215,7 +215,7 @@ async def join_handler(_, message: Message):
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.ADD))
 @_lockable_command_wrapper(CommandsEnum.ADD)
-async def add_handler(_, message: Message):
+async def add_command_handler(_, message: Message) -> None:
     """
     Add a song to the queue.
     """
@@ -266,7 +266,7 @@ async def add_handler(_, message: Message):
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.REPEAT, CommandsEnum.REPLAY))
 @_lockable_command_wrapper(CommandsEnum.REPEAT)
-async def repeat_handler(_, message: Message):
+async def repeat_command_handler(_, message: Message) -> None:
     if not player_py.is_running:
         await message.reply_text("Player is not running")
 
@@ -279,7 +279,7 @@ async def repeat_handler(_, message: Message):
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.PAUSE))
 @_lockable_command_wrapper(CommandsEnum.PAUSE)
-async def pause_handler(_, message: Message):
+async def pause_command_handler(_, message: Message) -> None:
     if not player_py.is_running:
         await message.reply_text("Player is not running")
 
@@ -292,7 +292,7 @@ async def pause_handler(_, message: Message):
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.RESUME))
 @_lockable_command_wrapper(CommandsEnum.RESUME)
-async def resume_handler(_, message: Message):
+async def resume_command_handler(_, message: Message) -> None:
     if not player_py.is_running:
         await message.reply_text("Player is not running")
 
@@ -305,7 +305,7 @@ async def resume_handler(_, message: Message):
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.SKIP))
 @_lockable_command_wrapper(CommandsEnum.SKIP)
-async def skip_handler(_, message: Message):
+async def skip_command_handler(_, message: Message) -> None:
     if not player_py.is_running:
         await message.reply_text("Player is not running")
 
@@ -318,7 +318,7 @@ async def skip_handler(_, message: Message):
 
 @app.on_message(control_filter & _get_command_filter(CommandsEnum.STOP))
 @_lockable_command_wrapper(CommandsEnum.STOP)
-async def stop_handler(_, message: Message):
+async def stop_command_handler(_, message: Message) -> None:
     stopping_message = await message.reply_text("Stopping player...")
 
     await player_py.stop()
@@ -329,7 +329,7 @@ async def stop_handler(_, message: Message):
 
 
 @call_py.on_update(calls_filters.stream_end())
-async def stream_end_handler(_, update: StreamEnded):
+async def stream_end_handler(_, update: StreamEnded) -> None:
     await player_py.process_stream_end()
 
 
