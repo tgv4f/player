@@ -1,6 +1,6 @@
 from pyrogram.client import Client
 from pyrogram.raw.base.input_peer import InputPeer
-from pytgcalls import PyTgCalls
+from pytgcalls import PyTgCalls, exceptions as calls_exceptions
 from pytgcalls.types import AudioQuality
 from pathlib import Path
 
@@ -116,6 +116,8 @@ class PlayerPy:
             if chat_id != join_chat_id:
                 try:
                     await self._call_py.leave_call(chat_id)
+                except (calls_exceptions.NoActiveGroupCall, calls_exceptions.NotInCallError):
+                    pass
                 except Exception as ex:
                     self._logger.exception(f"Error while leaving call with chat ID {chat_id}", exc_info=ex)
 

@@ -278,7 +278,7 @@ class PlayerWorker:
 
         try:
             await self._call_py.leave_call(self.join_chat_id)
-        except calls_exceptions.NotInCallError:
+        except (calls_exceptions.NoActiveGroupCall, calls_exceptions.NotInCallError):
             pass
 
         self._remove_last_played_song()
